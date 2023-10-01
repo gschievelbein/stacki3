@@ -6,6 +6,8 @@ from functools import partial
 from i3ipc import Event
 from i3ipc.aio import Connection
 
+def is_tabbed(container) -> bool:
+    return container.parent.layout=='tabbed'
 
 def is_floating(container) -> bool:
     if container.floating:
@@ -18,18 +20,22 @@ def is_floating(container) -> bool:
 
 
 async def set_splitting(i3, _, width: int) -> None:
+
     focused = (await i3.get_tree()).find_focused()
     if focused is None:
         return
     workspace = focused.workspace()
     tiled_windows = [leaf for leaf in workspace.leaves() if not is_floating(leaf)]
     if len(tiled_windows) == 1:
-        await focused.command("splith")
+        if not(is_tabbed(focused)):
+            await focused.command("splith")
     elif len(tiled_windows) == 2:
         left, right = tiled_windows
-        await left.command("splitv")
-        await right.command("splitv")
-        await right.command(f"resize set width {width} ppt")
+        if not is_tabbed(left):
+            await left.command("splitv")
+        if not is_tabbed(right):
+            await right.command("splitv")
+            await right.command(f"resize set width {width} ppt")
 
 
 async def amain():
@@ -51,3 +57,4 @@ async def amain():
 
 def main():
     asyncio.run(amain())
+    
